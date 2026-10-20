@@ -1,7 +1,7 @@
 
 # Every day a chapters of the Holy Quran
 
-- [Play 🔊]((https://marwane223.github.io/soure-site/))
+- [Play 🔊](https://marwane223.github.io/soure-site/)
 
 <br>
 
