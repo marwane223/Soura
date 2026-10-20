@@ -42,8 +42,13 @@
 <body>
 
   <div class="content">
+    <label for="reciterSelect">اختار المقرئ</label>
+    <input id="reciterSearch" type="search" placeholder="قلب على المقرئ..." aria-label="قلب على المقرئ" autocomplete="off" disabled>
+    <select id="reciterSelect" disabled>
+      <option value="">جاري تحميل المقرئين...</option>
+    </select>
     <div id="souraTitle">جاري التحميل...</div>
-    <div id="playPauseButton" onclick="togglePlayPause()">
+    <div id="playPauseButton" role="button" tabindex="0" onclick="togglePlayPause()">
       <i class="fas fa-play"></i>
     </div>
     <audio id="audioPlayer"></audio>
