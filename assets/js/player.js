@@ -23,9 +23,16 @@ const reciterSelect = document.getElementById('reciterSelect');
 const reciterSearch = document.getElementById('reciterSearch');
 let reciters = [];
 
+function normalizeSearchText(value) {
+  return value
+    .toLocaleLowerCase()
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+    .replace(/[أإآٱ]/g, 'ا');
+}
+
 function renderReciters(searchTerm = '') {
-  const query = searchTerm.trim().toLocaleLowerCase();
-  const matches = reciters.filter(reciter => reciter.name.toLocaleLowerCase().includes(query));
+  const query = normalizeSearchText(searchTerm.trim());
+  const matches = reciters.filter(reciter => normalizeSearchText(reciter.name).includes(query));
   const previousValue = reciterSelect.value;
   const selectedReciter = reciters.find(reciter => String(reciter.id) === localStorage.getItem('selectedReciter'));
   reciterSelect.replaceChildren(...matches.map(reciter => {
@@ -146,10 +153,10 @@ player.addEventListener('pause', () => { isPlaying = false; updatePlayButton(); 
 reciterSelect.addEventListener('change', () => loadSoura(reciterSelect.value, true));
 reciterSearch.addEventListener('input', () => {
   renderReciters(reciterSearch.value);
-  const query = reciterSearch.value.trim().toLocaleLowerCase();
-  const matchingReciters = reciters.filter(reciter => reciter.name.toLocaleLowerCase().includes(query));
+  const query = normalizeSearchText(reciterSearch.value.trim());
+  const matchingReciters = reciters.filter(reciter => normalizeSearchText(reciter.name).includes(query));
   const selectedReciter = matchingReciters.find(reciter => String(reciter.id) === reciterSelect.value);
-  const exactMatch = matchingReciters.find(reciter => reciter.name.trim().toLocaleLowerCase() === query);
+  const exactMatch = matchingReciters.find(reciter => normalizeSearchText(reciter.name.trim()) === query);
   const reciterToLoad = exactMatch || (matchingReciters.length === 1 ? matchingReciters[0] : null);
   if (reciterToLoad && String(reciterToLoad.id) !== String(selectedReciter?.id || '')) {
     reciterSelect.value = String(reciterToLoad.id);
