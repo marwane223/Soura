@@ -30,6 +30,7 @@ body {
     flex-direction: column;
     background-color: var(--bg);
     color: var(--text);
+    font-family: 'Amiri', serif;
 }
 
 .content {
