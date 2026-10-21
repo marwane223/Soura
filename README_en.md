@@ -14,7 +14,7 @@ The project has been republished and improved with the following features:
 
 ## Links
 
-- [🔊 Listen to the website](https://marwane223.github.io/soure-site/)
+- [🔊 Listen to the website](https://marwane223.github.io/Soura/)
 - [Original project](https://github.com/emadadeldev/Soura)
 - [Original creator's X account](https://x.com/emadadeldev)
 

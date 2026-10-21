@@ -14,7 +14,7 @@
 
 ## الروابط
 
-- [🔊 استمع إلى الموقع](https://marwane223.github.io/soure-site/)
+- [🔊 استمع إلى الموقع](https://marwane223.github.io/Soura/)
 - [المشروع الأصلي](https://github.com/emadadeldev/Soura)
 - [حساب X لصاحب المشروع الأصلي](https://x.com/emadadeldev)
 
