@@ -1,12 +1,24 @@
+**العربية** | [English](README_en.md)
 
-# Every day a chapters of the Holy Quran
+# سور من القرآن الكريم — إعادة إحياء وتطوير
 
-- [Play 🔊](https://marwane223.github.io/soure-site/)
+هذا الموقع إعادة إحياء لموقع **Soura** الأصلي، بعد توقف الموقع الأصلي عن العمل. يستند هذا الإصدار إلى المشروع الذي أنشأه [Emad Adel](https://github.com/emadadeldev/Soura)، مع الحفاظ على نسبة العمل الأصلي إلى صاحبه.
 
-<br>
+## عن هذه النسخة
 
-### Support Palestine
+أُعيد نشر المشروع وطُوّرت لتشمل التحسينات التالية:
 
-- [Donation](https://www.palestinercs.org/en/Donation)
+- اختيار القارئ من قائمة القراء.
+- البحث عن القراء.
+- حفظ القارئ وموضع التلاوة لاستعادتهما بعد تحديث الصفحة.
 
-- [Other way to support (boycott)](https://boycott4.github.io/boycott/)
+## الروابط
+
+- [🔊 استمع إلى الموقع](https://marwane223.github.io/soure-site/)
+- [المشروع الأصلي](https://github.com/emadadeldev/Soura)
+- [حساب X لصاحب المشروع الأصلي](https://x.com/emadadeldev)
+
+## دعم فلسطين
+
+- [التبرع للهلال الأحمر الفلسطيني](https://www.palestinercs.org/en/Donation)
+- [طرق أخرى للدعم](https://boycott4.github.io/boycott/)
