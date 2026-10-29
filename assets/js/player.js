@@ -19,17 +19,79 @@ const surahNames = [
 ];
 
 const player = document.getElementById('audioPlayer');
-const title = document.getElementById('souraTitle');
+const dailySourasTitle = document.getElementById('dailySourasTitle');
+const currentSurahTitle = document.getElementById('souraTitle');
 const reciterSelect = document.getElementById('reciterSelect');
 const reciterSearch = document.getElementById('reciterSearch');
+const reciterSearchStatus = document.getElementById('reciterSearchStatus');
+const playPauseButton = document.getElementById('playPauseButton');
+const progressBar = document.getElementById('progressBar');
+const currentTimeLabel = document.getElementById('currentTime');
+const durationLabel = document.getElementById('duration');
+const themeToggle = document.getElementById('themeToggle');
+const themePreferenceKey = 'themePreference';
 let reciters = [];
+
+function setTheme(theme, savePreference = false) {
+  document.documentElement.dataset.theme = theme;
+  const isDark = theme === 'dark';
+  themeToggle.setAttribute('aria-pressed', String(isDark));
+  themeToggle.setAttribute('aria-label', isDark ? 'التحويل إلى الوضع النهاري' : 'التحويل إلى الوضع الليلي');
+  themeToggle.innerHTML = `<i class="fas ${isDark ? 'fa-sun' : 'fa-moon'}" aria-hidden="true"></i>`;
+  if (savePreference) localStorage.setItem(themePreferenceKey, theme);
+}
+
+const savedTheme = localStorage.getItem(themePreferenceKey);
+setTheme(savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+
+themeToggle.addEventListener('click', () => {
+  setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark', true);
+});
+
+function formatTime(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+  return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
+}
+
+function updateProgress() {
+  const duration = player.duration;
+  const hasDuration = Number.isFinite(duration) && duration > 0;
+  progressBar.disabled = true;
+  if (!hasDuration) {
+    progressBar.value = '0';
+    progressBar.max = '0';
+    progressBar.style.setProperty('--progress', '0%');
+    currentTimeLabel.textContent = formatTime(0);
+    durationLabel.textContent = formatTime(0);
+    return;
+  }
+
+  const currentTime = Math.min(player.currentTime, duration);
+  const progress = (currentTime / duration) * 100;
+  progressBar.max = String(duration);
+  progressBar.value = String(currentTime);
+  progressBar.style.setProperty('--progress', `${progress}%`);
+  currentTimeLabel.textContent = formatTime(currentTime);
+  durationLabel.textContent = formatTime(duration);
+}
+
+function resetProgress() {
+  progressBar.disabled = true;
+  progressBar.max = '0';
+  progressBar.value = '0';
+  progressBar.style.setProperty('--progress', '0%');
+  currentTimeLabel.textContent = formatTime(0);
+  durationLabel.textContent = formatTime(0);
+}
 
 function getDateKey() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
-function savePlaybackState() {
+function savePlaybackState(time = player.currentTime, wasPlaying = !player.paused && !player.ended) {
   const reciterId = localStorage.getItem('selectedReciter');
   if (!reciterId || !dailySouras.length) return;
 
@@ -37,8 +99,8 @@ function savePlaybackState() {
     reciterId,
     date: getDateKey(),
     index: currentIndex,
-    time: Number.isFinite(player.currentTime) ? player.currentTime : 0,
-    wasPlaying: !player.paused && !player.ended
+    time: Number.isFinite(time) ? time : 0,
+    wasPlaying
   }));
 }
 
@@ -52,6 +114,15 @@ function normalizeSearchText(value) {
 function renderReciters(searchTerm = '') {
   const query = normalizeSearchText(searchTerm.trim());
   const matches = reciters.filter(reciter => normalizeSearchText(reciter.name).includes(query));
+  if (query) {
+    reciterSearchStatus.textContent = !matches.length
+      ? 'لم يتم العثور على قارئ بهذا الاسم.'
+      : matches.length === 1
+        ? `تم العثور على قارئ واحد: ${matches[0].name}`
+        : `تم العثور على ${matches.length} قراء. اختر واحداً من القائمة.`;
+  } else {
+    reciterSearchStatus.textContent = '';
+  }
   const previousValue = reciterSelect.value;
   const selectedReciter = reciters.find(reciter => String(reciter.id) === localStorage.getItem('selectedReciter'));
   reciterSelect.replaceChildren(...matches.map(reciter => {
@@ -90,7 +161,8 @@ async function loadReciters() {
     reciterSelect.value = initialReciter;
     await loadSoura(reciterSelect.value, false, true);
   } catch (error) {
-    title.textContent = 'تعذر تحميل قائمة القراء. يرجى تحديث الصفحة.';
+    dailySourasTitle.textContent = 'تعذر تحميل قائمة القراء. يرجى تحديث الصفحة.';
+    currentSurahTitle.textContent = '';
     reciterSelect.replaceChildren(new Option('تعذر تحميل القراء', ''));
     console.error('Error loading reciters:', error);
   }
@@ -100,9 +172,12 @@ async function loadSoura(reciterId, autoplay = false, restoreProgress = false) {
   const requestId = ++loadRequestId;
   const resumePlayback = !player.paused;
   if (!restoreProgress) savePlaybackState();
-  title.textContent = 'جارٍ تحميل السور...';
+  dailySourasTitle.textContent = 'جارٍ تحميل السور...';
+  currentSurahTitle.textContent = '';
   player.pause();
   isPlaying = false;
+  playPauseButton.disabled = true;
+  resetProgress();
   updatePlayButton();
 
   try {
@@ -140,7 +215,8 @@ async function loadSoura(reciterId, autoplay = false, restoreProgress = false) {
         savedState = null;
       }
     }
-    title.textContent = `سُوَر اليوم: ${dailySouras.map(surah => surah.name).join(' • ')}`;
+    dailySourasTitle.textContent = `سُوَر اليوم: ${dailySouras.map(surah => surah.name).join(' • ')}`;
+    currentSurahTitle.textContent = dailySouras[currentIndex].name;
     localStorage.setItem('selectedReciter', reciterId);
     if (restoreProgress && savedState && (savedState.time > 0 || savedState.wasPlaying)) {
       player.addEventListener('loadedmetadata', () => {
@@ -154,22 +230,26 @@ async function loadSoura(reciterId, autoplay = false, restoreProgress = false) {
       }, { once: true });
     }
     player.src = dailySouras[currentIndex].url;
-    savePlaybackState();
+    playPauseButton.disabled = false;
+    updateProgress();
+    if (!restoreProgress || !savedState) savePlaybackState(0, false);
     if ((resumePlayback || autoplay) && requestId === loadRequestId) {
       player.play().catch(error => console.error('Playback failed:', error));
     }
   } catch (error) {
     if (requestId !== loadRequestId) return;
     dailySouras = [];
-    title.textContent = 'تعذر تحميل السور لهذا القارئ.';
+    dailySourasTitle.textContent = 'تعذر تحميل السور لهذا القارئ.';
+    currentSurahTitle.textContent = '';
     console.error('Error loading soura:', error);
   }
 }
 
 function updatePlayButton() {
-  const icon = document.querySelector('#playPauseButton i');
+  const icon = playPauseButton.querySelector('i');
   icon.classList.toggle('fa-pause', isPlaying);
   icon.classList.toggle('fa-play', !isPlaying);
+  playPauseButton.setAttribute('aria-label', isPlaying ? 'إيقاف التلاوة مؤقتاً' : 'تشغيل التلاوة');
 }
 
 async function togglePlayPause() {
@@ -188,18 +268,42 @@ async function togglePlayPause() {
 }
 
 player.addEventListener('ended', () => {
-  if (!dailySouras.length) return;
-  currentIndex = (currentIndex + 1) % dailySouras.length;
-  player.src = dailySouras[currentIndex].url;
+  if (currentIndex < dailySouras.length - 1) {
+    currentIndex += 1;
+    currentSurahTitle.textContent = dailySouras[currentIndex].name;
+    resetProgress();
+    player.src = dailySouras[currentIndex].url;
+    savePlaybackState(0, true);
+    player.play().catch(error => console.error('Playback failed:', error));
+    return;
+  }
+
+  isPlaying = false;
+  updatePlayButton();
+  updateProgress();
   savePlaybackState();
-  player.play().catch(error => console.error('Playback failed:', error));
 });
 
-player.addEventListener('timeupdate', savePlaybackState);
-window.addEventListener('pagehide', savePlaybackState);
+player.addEventListener('loadedmetadata', updateProgress);
+player.addEventListener('durationchange', updateProgress);
+player.addEventListener('timeupdate', () => {
+  updateProgress();
+  savePlaybackState();
+});
+player.addEventListener('emptied', resetProgress);
+window.addEventListener('pagehide', () => savePlaybackState());
 player.addEventListener('play', () => { isPlaying = true; updatePlayButton(); });
-player.addEventListener('pause', () => { isPlaying = false; updatePlayButton(); });
-reciterSelect.addEventListener('change', () => loadSoura(reciterSelect.value, true));
+player.addEventListener('pause', () => {
+  isPlaying = false;
+  updatePlayButton();
+  savePlaybackState();
+});
+playPauseButton.addEventListener('click', togglePlayPause);
+reciterSelect.addEventListener('change', () => {
+  const selectedReciter = reciters.find(reciter => String(reciter.id) === reciterSelect.value);
+  if (selectedReciter) reciterSearchStatus.textContent = `القارئ المختار: ${selectedReciter.name}`;
+  loadSoura(reciterSelect.value, true);
+});
 reciterSearch.addEventListener('input', () => {
   renderReciters(reciterSearch.value);
   const query = normalizeSearchText(reciterSearch.value.trim());
@@ -207,6 +311,7 @@ reciterSearch.addEventListener('input', () => {
   const selectedReciter = matchingReciters.find(reciter => String(reciter.id) === reciterSelect.value);
   const exactMatch = matchingReciters.find(reciter => normalizeSearchText(reciter.name.trim()) === query);
   const reciterToLoad = exactMatch || (matchingReciters.length === 1 ? matchingReciters[0] : null);
+  if (reciterToLoad) reciterSearchStatus.textContent = `القارئ المختار: ${reciterToLoad.name}`;
   if (reciterToLoad && String(reciterToLoad.id) !== String(selectedReciter?.id || '')) {
     reciterSelect.value = String(reciterToLoad.id);
     loadSoura(String(reciterToLoad.id), true);
