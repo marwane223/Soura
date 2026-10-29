@@ -4,15 +4,15 @@
 
 :root {
   color-scheme: light;
-  --bg: #f5f4f0;
-  --surface: #ffffff;
-  --text: #252a31;
-  --muted: #68717d;
-  --border: #d6dbe1;
-  --accent: #1677d2;
-  --accent-hover: #0d5fae;
-  --track: #dfe5eb;
-  --shadow: 0 16px 44px rgb(30 42 56 / 9%);
+  --bg: #dfe8e0;
+  --surface: #eaf1eb;
+  --text: #26332b;
+  --muted: #617067;
+  --border: #ccd8ce;
+  --accent: #28734f;
+  --accent-hover: #205c40;
+  --track: #d5e0d7;
+  --shadow: 0 16px 44px rgb(37 62 45 / 9%);
 }
 
 :root[data-theme="dark"] {
@@ -22,9 +22,9 @@
   --text: #f1ede7;
   --muted: #c1c8d0;
   --border: #46505c;
-  --accent: #328fe8;
-  --accent-hover: #58a6f2;
-  --track: #414a55;
+  --accent: #58b981;
+  --accent-hover: #73c995;
+  --track: #3b5144;
   --shadow: 0 16px 44px rgb(0 0 0 / 22%);
 }
 
@@ -174,6 +174,28 @@ a {
   gap: 18px;
 }
 
+.daily-title[data-loading="true"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.daily-title[data-loading="true"]::before {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
+  border: 2px solid var(--track);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  content: "";
+  animation: status-spin 750ms linear infinite;
+}
+
+@keyframes status-spin {
+  to { transform: rotate(360deg); }
+}
+
 #playPauseButton {
   flex: 0 0 64px;
   width: 64px;
@@ -311,5 +333,11 @@ footer .fa-github {
 
   footer {
     padding: 14px 16px 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .daily-title[data-loading="true"]::before {
+    animation: none;
   }
 }

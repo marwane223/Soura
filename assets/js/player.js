@@ -2,6 +2,7 @@ let isPlaying = false;
 let dailySouras = [];
 let currentIndex = 0;
 let loadRequestId = 0;
+let activeAudioSource = '';
 const playbackStateKey = 'playbackState';
 
 const surahNames = [
@@ -31,6 +32,19 @@ const durationLabel = document.getElementById('duration');
 const themeToggle = document.getElementById('themeToggle');
 const themePreferenceKey = 'themePreference';
 let reciters = [];
+let dailyTitleDefault = 'جارٍ تحميل قائمة القراء...';
+let activeStatusMessage = '';
+
+function setPlayerStatus(message = '', loading = false) {
+  activeStatusMessage = message;
+  dailySourasTitle.textContent = message || dailyTitleDefault;
+  dailySourasTitle.dataset.loading = String(loading);
+}
+
+function setDailySourasTitle(title) {
+  dailyTitleDefault = title;
+  if (!activeStatusMessage) dailySourasTitle.textContent = title;
+}
 
 function setTheme(theme, savePreference = false) {
   document.documentElement.dataset.theme = theme;
@@ -91,6 +105,14 @@ function getDateKey() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
+function getSavedPlaybackState() {
+  try {
+    return JSON.parse(localStorage.getItem(playbackStateKey) || 'null');
+  } catch {
+    return null;
+  }
+}
+
 function savePlaybackState(time = player.currentTime, wasPlaying = !player.paused && !player.ended) {
   const reciterId = localStorage.getItem('selectedReciter');
   if (!reciterId || !dailySouras.length) return;
@@ -146,6 +168,7 @@ function renderReciters(searchTerm = '') {
 }
 
 async function loadReciters() {
+  setPlayerStatus('جارٍ تحميل قائمة القراء...', true);
   try {
     const response = await fetch('https://www.mp3quran.net/api/v3/reciters?language=ar');
     if (!response.ok) throw new Error('تعذر تحميل قائمة القراء');
@@ -153,17 +176,24 @@ async function loadReciters() {
     if (!reciters?.length) throw new Error('قائمة المقرئين فارغة');
 
     const savedReciter = localStorage.getItem('selectedReciter');
-    const initialReciter = savedReciter && reciters.some(reciter => String(reciter.id) === savedReciter)
-      ? savedReciter
-      : String(reciters[0].id);
+    const savedState = getSavedPlaybackState();
+    const canResumeSavedReciter = savedState?.date === getDateKey()
+      && Number.isInteger(savedState.index) && savedState.index >= 0 && savedState.index < 3
+      && reciters.some(reciter => String(reciter.id) === String(savedState.reciterId));
+    const initialReciter = canResumeSavedReciter
+      ? String(savedState.reciterId)
+      : savedReciter && reciters.some(reciter => String(reciter.id) === savedReciter)
+        ? savedReciter
+        : String(reciters[0].id);
     reciterSearch.disabled = false;
     renderReciters();
     reciterSelect.value = initialReciter;
     await loadSoura(reciterSelect.value, false, true);
   } catch (error) {
-    dailySourasTitle.textContent = 'تعذر تحميل قائمة القراء. يرجى تحديث الصفحة.';
+    setDailySourasTitle('تعذر تحميل قائمة القراء.');
     currentSurahTitle.textContent = '';
     reciterSelect.replaceChildren(new Option('تعذر تحميل القراء', ''));
+    setPlayerStatus('تعذر تحميل القراء. تحقق من الاتصال.', false);
     console.error('Error loading reciters:', error);
   }
 }
@@ -172,7 +202,9 @@ async function loadSoura(reciterId, autoplay = false, restoreProgress = false) {
   const requestId = ++loadRequestId;
   const resumePlayback = !player.paused;
   if (!restoreProgress) savePlaybackState();
-  dailySourasTitle.textContent = 'جارٍ تحميل السور...';
+  activeAudioSource = '';
+  setDailySourasTitle('جارٍ تحميل السور...');
+  setPlayerStatus('جارٍ تحميل السور...', true);
   currentSurahTitle.textContent = '';
   player.pause();
   isPlaying = false;
@@ -203,11 +235,7 @@ async function loadSoura(reciterId, autoplay = false, restoreProgress = false) {
     currentIndex = 0;
     let savedState;
     if (restoreProgress) {
-      try {
-        savedState = JSON.parse(localStorage.getItem(playbackStateKey) || 'null');
-      } catch {
-        savedState = null;
-      }
+      savedState = getSavedPlaybackState();
       if (savedState?.reciterId === String(reciterId) && savedState.date === getDateKey()
           && Number.isInteger(savedState.index) && savedState.index >= 0 && savedState.index < dailySouras.length) {
         currentIndex = savedState.index;
@@ -215,7 +243,7 @@ async function loadSoura(reciterId, autoplay = false, restoreProgress = false) {
         savedState = null;
       }
     }
-    dailySourasTitle.textContent = `سُوَر اليوم: ${dailySouras.map(surah => surah.name).join(' • ')}`;
+    setDailySourasTitle(`سُوَر اليوم: ${dailySouras.map(surah => surah.name).join(' • ')}`);
     currentSurahTitle.textContent = dailySouras[currentIndex].name;
     localStorage.setItem('selectedReciter', reciterId);
     if (restoreProgress && savedState && (savedState.time > 0 || savedState.wasPlaying)) {
@@ -225,24 +253,32 @@ async function loadSoura(reciterId, autoplay = false, restoreProgress = false) {
         const targetTime = Number.isFinite(duration) ? Math.min(savedState.time, Math.max(0, duration - 0.5)) : savedState.time;
         player.currentTime = targetTime;
         if (savedState.wasPlaying) {
-          player.play().catch(error => console.error('Playback failed:', error));
+          player.play().catch(showPlaybackError);
         }
       }, { once: true });
     }
-    player.src = dailySouras[currentIndex].url;
+    activeAudioSource = new URL(dailySouras[currentIndex].url, document.baseURI).href;
+    player.src = activeAudioSource;
+    setPlayerStatus('جارٍ تحميل التلاوة...', true);
     playPauseButton.disabled = false;
     updateProgress();
     if (!restoreProgress || !savedState) savePlaybackState(0, false);
     if ((resumePlayback || autoplay) && requestId === loadRequestId) {
-      player.play().catch(error => console.error('Playback failed:', error));
+      player.play().catch(showPlaybackError);
     }
   } catch (error) {
     if (requestId !== loadRequestId) return;
     dailySouras = [];
-    dailySourasTitle.textContent = 'تعذر تحميل السور لهذا القارئ.';
+    setDailySourasTitle('تعذر تحميل السور لهذا القارئ.');
     currentSurahTitle.textContent = '';
+    setPlayerStatus('تعذر تحميل السور. جرّب قارئاً آخر.', false);
     console.error('Error loading soura:', error);
   }
+}
+
+function showPlaybackError(error) {
+  setPlayerStatus('تعذر تشغيل الصوت. حاول مرة أخرى.', false);
+  console.error('Playback failed:', error);
 }
 
 function updatePlayButton() {
@@ -263,7 +299,7 @@ async function togglePlayPause() {
     }
     updatePlayButton();
   } catch (error) {
-    console.error('Playback failed:', error);
+    showPlaybackError(error);
   }
 }
 
@@ -272,20 +308,33 @@ player.addEventListener('ended', () => {
     currentIndex += 1;
     currentSurahTitle.textContent = dailySouras[currentIndex].name;
     resetProgress();
-    player.src = dailySouras[currentIndex].url;
+    activeAudioSource = new URL(dailySouras[currentIndex].url, document.baseURI).href;
+    player.src = activeAudioSource;
+    setPlayerStatus('جارٍ تحميل التلاوة التالية...', true);
     savePlaybackState(0, true);
-    player.play().catch(error => console.error('Playback failed:', error));
+    player.play().catch(showPlaybackError);
     return;
   }
 
   isPlaying = false;
   updatePlayButton();
   updateProgress();
+  setPlayerStatus('انتهت سور اليوم.', false);
   savePlaybackState();
 });
 
 player.addEventListener('loadedmetadata', updateProgress);
 player.addEventListener('durationchange', updateProgress);
+player.addEventListener('waiting', () => setPlayerStatus('جارٍ تحميل التلاوة...', true));
+player.addEventListener('stalled', () => setPlayerStatus('الاتصال بطيء؛ جارٍ انتظار التلاوة...', true));
+player.addEventListener('canplay', () => setPlayerStatus());
+player.addEventListener('playing', () => setPlayerStatus());
+player.addEventListener('error', () => {
+  const currentSource = player.currentSrc || player.src;
+  if (activeAudioSource && currentSource === activeAudioSource) {
+    setPlayerStatus('تعذر تحميل الصوت. اختر قارئاً آخر.', false);
+  }
+});
 player.addEventListener('timeupdate', () => {
   updateProgress();
   savePlaybackState();
